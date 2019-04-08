@@ -31,7 +31,6 @@ class bilibili_rules:
         flow.response.text = json.dumps(jdata)
 
     def __request_proxy(self, flow: http.HTTPFlow):
-        url = "%s://%s%s"%(flow.request.scheme, flow.request.host, flow.request.path)
         func = {
             "GET": requests.get
         }.get(flow.request.method.upper())
@@ -39,8 +38,7 @@ class bilibili_rules:
         proxies = {
             "https": "socks4://220.133.218.213:58340"
         }
-        resp:Response = func(url, headers=flow.request.headers, proxies=proxies)
-
+        resp:Response = func(flow.request.url, headers=flow.request.headers, proxies=proxies)
         flow.response = flow.response.make(status_code=int(resp.status_code), content=resp.content, headers=dict(resp.headers))
 
     def tw_only(self, flow: http.HTTPFlow):
