@@ -14,7 +14,6 @@ class bilibili_rules:
             return False
         return True
 
-
     def enable_download(self, flow: http.HTTPFlow):
         filter_dict = {
             "api.bilibili.com": [
@@ -39,7 +38,7 @@ class bilibili_rules:
             "https": "socks4://220.133.218.213:58340"
         }
         resp:Response = func(flow.request.url, headers=flow.request.headers, proxies=proxies)
-        flow.response = flow.response.make(status_code=int(resp.status_code), content=resp.content, headers=dict(resp.headers))
+        flow.response = http.HTTPResponse.make(status_code=int(resp.status_code), content=resp.content, headers=dict(resp.headers))
 
     def tw_only(self, flow: http.HTTPFlow):
         filter_dict = {
@@ -63,11 +62,21 @@ class bilibili_rules:
         self.__request_proxy(flow)
 
     def response(self, flow:http.HTTPFlow):
+        if flow.do_not_inject:
+            return
         if "bilibili.com" not in flow.request.host:
             return
 
         self.tw_only(flow)
         self.enable_download(flow)
+
+    def requestheaders(self, flow:http.HTTPFlow):
+        # TODO: mitmproxy采用的是预加载机制，比如下载flv超大文件，下载文件没下载完成前不会返回，只能一直卡在代理的内容加载上，目前没找到好的办法，先拦截已观测到的超大的flv文件下载，目前测试不影响客户端下载（不确定是否影响下载速度）
+        flow.do_not_inject = False
+        real_path = flow.request.path.split("?")[0]
+        if real_path.startswith("/upgcxcode/") and real_path.endswith(".flv"):
+            flow.do_not_inject = True
+            flow.response = http.HTTPResponse.make(status_code=int(404), content="", headers=dict())
 
 
 addons = [
